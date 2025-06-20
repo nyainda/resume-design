@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,8 +15,8 @@ interface Education {
   school: string;
   degree: string;
   location: string;
-  startDate: string;
-  endDate: string;
+  startDate: string; // Format: YYYY-MM
+  endDate: string; // Format: YYYY-MM
   gpa: string;
   description?: string;
   courses?: string;
@@ -52,6 +51,14 @@ const EducationForm: React.FC<EducationFormProps> = ({ data, onChange }) => {
   }
 
   const updateEducation = (id: number, field: keyof Education, value: string) => {
+    if (field === 'startDate' || field === 'endDate') {
+      // Validate YYYY-MM format (e.g., "2020-09") or allow empty string
+      const isValidDate = value === '' || /^\d{4}-\d{2}$/.test(value);
+      if (!isValidDate) {
+        toast.error('Please use YYYY-MM format for dates (e.g., 2020-09)');
+        return;
+      }
+    }
     const updatedEducations = educations.map(edu => 
       edu.id === id ? { ...edu, [field]: value } : edu
     );
@@ -239,29 +246,31 @@ const EducationForm: React.FC<EducationFormProps> = ({ data, onChange }) => {
               {/* Dates Row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor={`startDate-${edu.id}`} className="flex items-center gap-2">
+                  <Label htmlFor="startDate-${edu.id}" className="flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
                     Start Date
                   </Label>
                   <Input
-                    id={`startDate-${edu.id}`}
+                    id="startDate-${edu.id}"
+                    type="month"
                     value={edu.startDate}
                     onChange={(e) => updateEducation(edu.id, 'startDate', e.target.value)}
-                    placeholder="2020"
+                    placeholder="2020-09"
                     className="transition-all duration-200 focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor={`endDate-${edu.id}`} className="flex items-center gap-2">
+                  <Label htmlFor="endDate-${edu.id}" className="flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
                     End Date
                   </Label>
                   <Input
-                    id={`endDate-${edu.id}`}
+                    id="endDate-${edu.id}"
+                    type="month"
                     value={edu.endDate}
                     onChange={(e) => updateEducation(edu.id, 'endDate', e.target.value)}
-                    placeholder="2024"
+                    placeholder="2024-05"
                     className="transition-all duration-200 focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
@@ -270,7 +279,7 @@ const EducationForm: React.FC<EducationFormProps> = ({ data, onChange }) => {
               {/* AI-Enhanced Description */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor={`description-${edu.id}`} className="flex items-center gap-2">
+                  <Label htmlFor="description-${edu.id}" className="flex items-center gap-2">
                     <span className="text-sm font-medium">Description</span>
                     <Badge variant="outline" className="text-xs">AI Enhanced</Badge>
                   </Label>
@@ -290,7 +299,7 @@ const EducationForm: React.FC<EducationFormProps> = ({ data, onChange }) => {
                   </Button>
                 </div>
                 <Textarea
-                  id={`description-${edu.id}`}
+                  id="description-${edu.id}"
                   value={edu.description || ''}
                   onChange={(e) => updateEducation(edu.id, 'description', e.target.value)}
                   placeholder="Brief description of achievements, relevant coursework, or skills gained..."
@@ -302,9 +311,9 @@ const EducationForm: React.FC<EducationFormProps> = ({ data, onChange }) => {
               {/* Additional Fields */}
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor={`courses-${edu.id}`} className="text-sm font-medium">Relevant Courses</Label>
+                  <Label htmlFor="courses-${edu.id}" className="text-sm font-medium">Relevant Courses</Label>
                   <Textarea
-                    id={`courses-${edu.id}`}
+                    id="courses-${edu.id}"
                     value={edu.courses || ''}
                     onChange={(e) => updateEducation(edu.id, 'courses', e.target.value)}
                     placeholder="Data Structures, Algorithms, Machine Learning, Database Systems..."
@@ -314,9 +323,9 @@ const EducationForm: React.FC<EducationFormProps> = ({ data, onChange }) => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor={`honors-${edu.id}`} className="text-sm font-medium">Honors & Awards</Label>
+                  <Label htmlFor="honors-${edu.id}" className="text-sm font-medium">Honors & Awards</Label>
                   <Input
-                    id={`honors-${edu.id}`}
+                    id="honors-${edu.id}"
                     value={edu.honors || ''}
                     onChange={(e) => updateEducation(edu.id, 'honors', e.target.value)}
                     placeholder="Dean's List, Magna Cum Laude, Outstanding Student Award..."
