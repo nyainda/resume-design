@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,8 +42,46 @@ const PersonalInfoFormEnhanced: React.FC<PersonalInfoFormEnhancedProps> = ({ dat
     setGeneratingSummary(true);
     try {
       const prompt = jobDescription.trim() 
-        ? `Create a professional summary for a resume targeting this job: ${jobDescription}. Make it 2-3 sentences, highlighting relevant skills and experience. Focus on what the job requires.`
-        : `Create a professional summary for ${data.fullName || 'a professional'}. Make it 2-3 sentences highlighting their experience and skills.`;
+        ? `You are an expert resume writer and career coach. Create a compelling professional summary for a resume that targets this specific job opportunity:
+
+JOB DESCRIPTION:
+${jobDescription}
+
+REQUIREMENTS:
+- Write 2-3 powerful sentences (40-60 words total)
+- Use active voice and strong action verbs
+- Include relevant keywords from the job description for ATS optimization  
+- Highlight the most valuable skills and experiences that match the role
+- Quantify achievements when possible (use placeholder numbers if specific data unavailable)
+- Write in third person without using "I" or the person's name
+- Make it results-oriented and value-focused
+- Ensure it passes ATS keyword scanning
+- Use industry-specific terminology appropriately
+
+TONE: Professional, confident, and compelling
+FORMAT: 2-3 sentences, no bullet points
+
+Example structure: "[Years] of experience in [field/industry] with proven expertise in [key skills]. Successfully [major achievement with impact]. Skilled in [relevant technologies/methods] with a track record of [measurable results]."
+
+Generate the professional summary now:`
+        : `You are an expert resume writer. Create a versatile professional summary for ${data.fullName || 'a professional'}.
+
+REQUIREMENTS:
+- Write 2-3 powerful sentences (40-60 words total)
+- Use active voice and strong action verbs
+- Make it adaptable to various roles and industries
+- Focus on transferable skills and universal professional strengths
+- Include soft skills and leadership qualities
+- Write in third person without using "I" or the person's name
+- Be results-oriented and achievement-focused
+- Use professional, polished language
+
+TONE: Professional, confident, and versatile
+FORMAT: 2-3 sentences, no bullet points
+
+Focus on: Leadership abilities, problem-solving skills, communication strengths, adaptability, and drive for results.
+
+Generate the professional summary now:`;
 
       const { data: result, error } = await supabase.functions.invoke('gemini-ai-optimize', {
         body: { 
@@ -86,7 +123,35 @@ const PersonalInfoFormEnhanced: React.FC<PersonalInfoFormEnhancedProps> = ({ dat
 
     setGeneratingSummary(true);
     try {
-      const prompt = `Enhance and improve this professional summary: "${data.summary}". Make it more compelling, professional, and ATS-friendly. Keep it 2-3 sentences.`;
+      const prompt = `You are an expert resume writer and ATS optimization specialist. Enhance and improve this professional summary to make it more compelling and effective:
+
+CURRENT SUMMARY:
+"${data.summary}"
+
+ENHANCEMENT REQUIREMENTS:
+- Rewrite to be 2-3 powerful sentences (40-60 words total)
+- Use stronger action verbs and more impactful language
+- Make it more ATS-friendly by incorporating relevant keywords
+- Improve the flow and readability
+- Add more specific, results-oriented language
+- Ensure it sounds professional and polished
+- Remove any redundant or weak phrases
+- Make every word count and add value
+- Use active voice throughout
+- Include quantifiable achievements where possible
+
+IMPROVEMENTS TO FOCUS ON:
+1. Replace weak verbs with strong action verbs
+2. Add industry-relevant keywords
+3. Make achievements more specific and measurable
+4. Improve sentence structure and flow
+5. Enhance professional tone
+6. Optimize for both human readers and ATS systems
+
+TONE: Professional, confident, and compelling
+FORMAT: 2-3 sentences, no bullet points
+
+Provide only the enhanced summary, no explanations or additional text:`;
 
       const { data: result, error } = await supabase.functions.invoke('gemini-ai-optimize', {
         body: { 

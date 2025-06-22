@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import FormSection from '@/components/builder/FormSection';
 import PreviewSection from '@/components/builder/PreviewSection';
 import Modals from '@/components/builder/Modals';
 import JobDescriptionEmbedder from '@/components/JobDescriptionEmbedder';
-import ComingSoonFeatures from '@/components/ComingSoonFeatures';
+//import ComingSoonFeatures from '@/components/ComingSoonFeatures';
 import LiveFeatures from '@/components/LiveFeatures';
 import PDFGenerator from '@/components/PDFGenerator';
 import { ProfileIntegrationService } from '@/services/profileIntegration';
@@ -44,7 +44,8 @@ interface ResumeData {
     endDate: string;
     gpa: string;
   }>;
-  skills: string[];
+  // Updated skills to support both formats
+  skills: string[] | Array<{name: string; level: string; category: string}>;
   certifications: Array<{
     id: number;
     name: string;
@@ -85,6 +86,7 @@ const Builder: React.FC = () => {
   const resumeIdParam = searchParams.get('id');
   const initialTemplate = parseInt(searchParams.get('template') || '0');
   
+  // Initialize resumeData with proper default structure
   const [resumeData, setResumeData] = useState<ResumeData>({
     personal: {
       fullName: '',
@@ -115,12 +117,17 @@ const Builder: React.FC = () => {
   const [previewScale] = useState(0.3);
   const [showCVParser, setShowCVParser] = useState(false);
   const [jobDescription, setJobDescription] = useState('');
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
-  // Make sure activeTab state change is properly handled
-  const handleTabChange = (newTab: string) => {
-    console.log('Builder: Tab changing to', newTab);
-    setActiveTab(newTab);
-  };
+  // Enhanced tab change handler with better state management
+  const handleTabChange = useCallback((newTab: string) => {
+    console.log('Builder: Tab changing from', activeTab, 'to', newTab);
+    
+    // Add a small delay to ensure state updates are processed
+    setTimeout(() => {
+      setActiveTab(newTab);
+    }, 0);
+  }, [activeTab]);
 
   useEffect(() => {
     if (user) {
@@ -128,56 +135,152 @@ const Builder: React.FC = () => {
     }
   }, [user, resumeIdParam]);
 
-  const loadResumeData = async () => {
-    if (!user) return;
+ const loadResumeData = async () => {
+  if (!user) return;
 
-    try {
-      let query = supabase
-        .from('resumes')
-        .select('*')
-        .eq('user_id', user.id);
-      
-      if (resumeIdParam) {
-        query = query.eq('id', resumeIdParam);
-      } else {
-        query = query.order('updated_at', { ascending: false }).limit(1);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        const resume = data[0];
-        setResumeId(resume.id);
-        setSelectedTemplate(resume.template_id || 0);
-        
-        setResumeData({
-          personal: resume.personal_info && typeof resume.personal_info === 'object' && !Array.isArray(resume.personal_info) 
-            ? resume.personal_info as ResumeData['personal']
-            : {
-                fullName: '',
-                email: '',
-                phone: '',
-                location: '',
-                summary: ''
-              },
-          experience: Array.isArray(resume.experience) ? resume.experience as ResumeData['experience'] : [],
-          education: Array.isArray(resume.education) ? resume.education as ResumeData['education'] : [],
-          skills: Array.isArray(resume.skills) ? resume.skills as string[] : [],
-          certifications: Array.isArray(resume.certifications) ? resume.certifications as ResumeData['certifications'] : [],
-          languages: Array.isArray(resume.languages) ? resume.languages as ResumeData['languages'] : [],
-          interests: Array.isArray(resume.interests) ? resume.interests as string[] : [],
-          projects: Array.isArray(resume.projects) ? resume.projects as ResumeData['projects'] : [],
-          references: Array.isArray(resume.references) ? resume.references as ResumeData['references'] : []
-        });
-      }
-    } catch (error: any) {
-      console.error('Error loading resume:', error);
-      toast.error('Failed to load resume data');
+  try {
+    setIsDataLoaded(false);
+    
+    let query = supabase
+      .from('resumes')
+      .select('*')
+      .eq('user_id', user.id);
+    
+    if (resumeIdParam) {
+      query = query.eq('id', resumeIdParam);
+    } else {
+      query = query.order('updated_at', { ascending: false }).limit(1);
     }
-  };
 
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      const resume = data[0];
+      setResumeId(resume.id);
+      setSelectedTemplate(resume.template_id || 0);
+      
+      // Process skills with better error handling
+      let processedSkills: string[] | Array<{name: string; level: string; category: string}> = [];
+      
+      if (resume.skills) {
+        if (Array.isArray(resume.skills)) {
+          // Check if it's enhanced format or simple array
+          if (resume.skills.length > 0 && 
+              typeof resume.skills[0] === 'object' && 
+              resume.skills[0].hasOwnProperty('name') &&
+              resume.skills[0].hasOwnProperty('level')) {
+            // Enhanced format
+            processedSkills = resume.skills.map((skill: any) => ({
+              name: skill.name || '',
+              level: skill.level || 'Intermediate',
+              category: skill.category || 'Technical'
+            }));
+          } else {
+            // Simple string array
+            processedSkills = resume.skills
+              .filter((skill: any) => skill && (typeof skill === 'string' || typeof skill === 'number'))
+              .map((skill: any) => String(skill));
+          }
+        }
+      }
+      
+      const newResumeData: ResumeData = {
+        personal: (() => {
+          let personalInfo = {
+            fullName: '',
+            email: '',
+            phone: '',
+            location: '',
+            summary: ''
+          };
+          if (resume.personal_info) {
+            let parsed;
+            try {
+              parsed = typeof resume.personal_info === 'string'
+                ? JSON.parse(resume.personal_info)
+                : resume.personal_info;
+            } catch {
+              parsed = {};
+            }
+            personalInfo = {
+              fullName: parsed.fullName || '',
+              email: parsed.email || '',
+              phone: parsed.phone || '',
+              location: parsed.location || '',
+              summary: parsed.summary || ''
+            };
+          }
+          return personalInfo;
+        })(),
+        experience: Array.isArray(resume.experience) ? resume.experience.map((exp: any, index: number) => ({
+          id: exp.id || index + 1,
+          company: exp.company || '',
+          position: exp.position || '',
+          location: exp.location || '',
+          startDate: exp.startDate || '',
+          endDate: exp.endDate || '',
+          description: exp.description || ''
+        })) : [],
+        education: Array.isArray(resume.education) ? resume.education.map((edu: any, index: number) => ({
+          id: edu.id || index + 1,
+          school: edu.school || '',
+          degree: edu.degree || '',
+          location: edu.location || '',
+          startDate: edu.startDate || '',
+          endDate: edu.endDate || '',
+          gpa: edu.gpa || ''
+        })) : [],
+        skills: processedSkills, // Use the processed skills
+        certifications: Array.isArray(resume.certifications) ? resume.certifications.map((cert: any, index: number) => ({
+          id: cert.id || index + 1,
+          name: cert.name || '',
+          issuer: cert.issuer || '',
+          date: cert.date || '',
+          credentialId: cert.credentialId || ''
+        })) : [],
+        languages: Array.isArray(resume.languages) ? resume.languages.map((lang: any, index: number) => ({
+          id: lang.id || index + 1,
+          language: lang.language || '',
+          proficiency: lang.proficiency || ''
+        })) : [],
+        interests: Array.isArray(resume.interests) ? resume.interests.filter(interest => interest).map(interest => String(interest)) : [],
+        projects: Array.isArray(resume.projects) ? resume.projects.map((proj: any, index: number) => ({
+          id: proj.id || index + 1,
+          name: proj.name || '',
+          description: proj.description || '',
+          technologies: proj.technologies || '',
+          link: proj.link || '',
+          startDate: proj.startDate || '',
+          endDate: proj.endDate || ''
+        })) : [],
+        references: Array.isArray(resume.references) ? resume.references.map((ref: any, index: number) => ({
+          id: ref.id || index + 1,
+          name: ref.name || '',
+          title: ref.title || '',
+          company: ref.company || '',
+          email: ref.email || '',
+          phone: ref.phone || '',
+          relationship: ref.relationship || ''
+        })) : []
+      };
+      
+      setResumeData(newResumeData);
+      
+      // Set job description if available
+      if (resume.job_description) {
+        setJobDescription(resume.job_description);
+      }
+    }
+    
+    setIsDataLoaded(true);
+  } catch (error: any) {
+    console.error('Error loading resume:', error);
+    toast.error('Failed to load resume data');
+    setIsDataLoaded(true);
+  }
+};
   const saveResumeData = async () => {
     if (!user) return;
 
@@ -244,45 +347,68 @@ const Builder: React.FC = () => {
     }).join('\n');
   };
 
-  const updateExperience = (data: any[]) => {
-    const formattedData = data.map(exp => ({
+  // Enhanced update functions with better state management
+  const updateExperience = useCallback((data: any[]) => {
+    const formattedData = data.map((exp, index) => ({
       ...exp,
+      id: exp.id || index + 1,
       description: exp.description ? formatWithBullets(exp.description) : ''
     }));
     setResumeData(prev => ({ ...prev, experience: formattedData }));
-  };
+  }, []);
 
-  const updatePersonalInfo = (data: any) => {
-    setResumeData(prev => ({ ...prev, personal: data }));
-  };
+  const updatePersonalInfo = useCallback((data: any) => {
+    setResumeData(prev => ({ ...prev, personal: { ...prev.personal, ...data } }));
+  }, []);
 
-  const updateEducation = (data: any[]) => {
-    setResumeData(prev => ({ ...prev, education: data }));
-  };
+  const updateEducation = useCallback((data: any[]) => {
+    const formattedData = data.map((edu, index) => ({
+      ...edu,
+      id: edu.id || index + 1
+    }));
+    setResumeData(prev => ({ ...prev, education: formattedData }));
+  }, []);
 
-  const updateSkills = (data: string[]) => {
-    setResumeData(prev => ({ ...prev, skills: data }));
-  };
+  const updateSkills = useCallback((data: string[] | Array<{name: string; level: string; category: string}>) => {
+  console.log('Updating skills with:', data);
+  setResumeData(prev => ({ ...prev, skills: data }));
+}, []);
 
-  const updateProjects = (data: any[]) => {
-    setResumeData(prev => ({ ...prev, projects: data }));
-  };
+  const updateProjects = useCallback((data: any[]) => {
+    const formattedData = data.map((proj, index) => ({
+      ...proj,
+      id: proj.id || index + 1
+    }));
+    setResumeData(prev => ({ ...prev, projects: formattedData }));
+  }, []);
 
-  const updateCertifications = (data: any[]) => {
-    setResumeData(prev => ({ ...prev, certifications: data }));
-  };
+  const updateCertifications = useCallback((data: any[]) => {
+    const formattedData = data.map((cert, index) => ({
+      ...cert,
+      id: cert.id || index + 1
+    }));
+    setResumeData(prev => ({ ...prev, certifications: formattedData }));
+  }, []);
 
-  const updateLanguages = (data: any[]) => {
-    setResumeData(prev => ({ ...prev, languages: data }));
-  };
+  const updateLanguages = useCallback((data: any[]) => {
+    const formattedData = data.map((lang, index) => ({
+      ...lang,
+      id: lang.id || index + 1
+    }));
+    setResumeData(prev => ({ ...prev, languages: formattedData }));
+  }, []);
 
-  const updateInterests = (data: string[]) => {
-    setResumeData(prev => ({ ...prev, interests: data }));
-  };
+  const updateInterests = useCallback((data: string[]) => {
+    setResumeData(prev => ({ ...prev, interests: [...data] }));
+  }, []);
 
-  const updateReferences = (data: any[]) => {
-    setResumeData(prev => ({ ...prev, references: data }));
-  };
+  const updateReferences = useCallback((data: any[]) => {
+    const formattedData = data.map((ref, index) => ({
+      ...ref,
+      id: ref.id || index + 1
+    }));
+    setResumeData(prev => ({ ...prev, references: formattedData }));
+  }, []);
 
   const handleAIOptimize = async () => {
     if (!resumeData.personal.fullName) {
@@ -335,21 +461,47 @@ const Builder: React.FC = () => {
   };
 
   const handleJobDescriptionParsed = (parsedData: any) => {
-    if (parsedData.skills) {
-      updateSkills([...resumeData.skills, ...parsedData.skills]);
+  if (parsedData.skills) {
+    // Merge with existing skills, handling both formats
+    let currentSkills = resumeData.skills;
+    let newSkills = parsedData.skills;
+    
+    if (Array.isArray(currentSkills) && currentSkills.length > 0 && 
+        typeof currentSkills[0] === 'object' && 'name' in currentSkills[0]) {
+      // Current skills are in enhanced format
+      const currentSkillNames = currentSkills.map(skill => skill.name.toLowerCase());
+      const additionalSkills = newSkills
+        .filter((skill: string) => !currentSkillNames.includes(skill.toLowerCase()))
+        .map((skill: string) => ({
+          name: skill,
+          level: 'Intermediate',
+          category: 'Technical'
+        }));
+      
+      updateSkills([...currentSkills, ...additionalSkills]);
+    } else {
+      // Current skills are in simple format
+      const currentSkillNames = (currentSkills as string[]).map(skill => skill.toLowerCase());
+      const additionalSkills = newSkills.filter((skill: string) => 
+        !currentSkillNames.includes(skill.toLowerCase())
+      );
+      
+      updateSkills([...(currentSkills as string[]), ...additionalSkills]);
     }
-    if (parsedData.experience) {
-      updateExperience([...resumeData.experience, parsedData.experience]);
-    }
-    if (parsedData.summary) {
-      updatePersonalInfo({
-        ...resumeData.personal,
-        summary: parsedData.summary
-      });
-    }
-    setShowJobParser(false);
-    toast.success('Job description parsed and applied to resume!');
-  };
+  }
+  
+  if (parsedData.experience) {
+    updateExperience([...resumeData.experience, parsedData.experience]);
+  }
+  if (parsedData.summary) {
+    updatePersonalInfo({
+      ...resumeData.personal,
+      summary: parsedData.summary
+    });
+  }
+  setShowJobParser(false);
+  toast.success('Job description parsed and applied to resume!');
+};
 
   const handleDownloadPDF = async () => {
     if (!resumeData.personal.fullName) {
@@ -477,6 +629,18 @@ const Builder: React.FC = () => {
     );
   }
 
+  // Show loading state while data is being loaded
+  if (!isDataLoaded) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-700 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">Loading your resume...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/50 to-indigo-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-700">
       <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-6 max-w-7xl">
@@ -527,7 +691,7 @@ const Builder: React.FC = () => {
 
         {/* Coming Soon Features Section */}
         <div className="mb-4 sm:mb-6">
-          <ComingSoonFeatures />
+         
         </div>
 
         {/* Main Content - Improved Responsive Grid */}
@@ -536,6 +700,7 @@ const Builder: React.FC = () => {
           {/* Form Section - Takes more space on larger screens */}
           <div className="xl:col-span-3 space-y-4 sm:space-y-6">
             <FormSection
+              key={`form-${activeTab}-${isDataLoaded}`} // Force re-render when tab changes or data loads
               resumeData={resumeData}
               activeTab={activeTab}
               onTabChange={handleTabChange}
