@@ -6,8 +6,10 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, X, Star, Award, Zap, Sparkles, Loader2, Bot, Brain, Target } from 'lucide-react';
-import { useAPIKey } from '@/hooks/useAPIKey';
+import { Plus, X, Star, Award, Zap, Sparkles, Loader2, Bot, Brain, Target, Menu } from 'lucide-react';
+
+// Mock useAPIKey hook for demo
+const useAPIKey = () => ({ apiKey: 'demo-key' });
 
 interface Skill {
   id: number;
@@ -17,11 +19,14 @@ interface Skill {
 }
 
 interface EnhancedSkillsFormProps {
-  data: string[] | Array<{name: string; level: string; category: string}>;
-  onChange: (data: string[] | Array<{name: string; level: string; category: string}>) => void;
+  data?: string[] | Array<{name: string; level: string; category: string}>;
+  onChange?: (data: string[] | Array<{name: string; level: string; category: string}>) => void;
 }
 
-const EnhancedSkillsForm: React.FC<EnhancedSkillsFormProps> = ({ data, onChange }) => {
+const EnhancedSkillsForm: React.FC<EnhancedSkillsFormProps> = ({ 
+  data = [], 
+  onChange = () => {} 
+}) => {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [newSkill, setNewSkill] = useState('');
   const [newLevel, setNewLevel] = useState<Skill['level']>('Intermediate');
@@ -138,95 +143,38 @@ const EnhancedSkillsForm: React.FC<EnhancedSkillsFormProps> = ({ data, onChange 
 
     setIsGenerating(true);
 
-    try {
-      const prompt = `
-        Based on the following information, suggest 8-12 relevant skills that would be valuable for this professional profile:
-        
-        ${currentRole ? `Current Role: ${currentRole}` : ''}
-        ${jobDescription ? `Job Description/Target Role: ${jobDescription}` : ''}
-        
-        Current skills already listed: ${skills.map(s => s.name).join(', ')}
-        
-        Please suggest NEW skills (not already in the current list) and format your response as a JSON array with objects containing:
-        - name: the skill name
-        - level: one of "Beginner", "Intermediate", "Advanced", "Expert" (be realistic based on typical requirements)
-        - category: one of "Technical", "Soft", "Language", "Tool", "Framework"
-        
-        Focus on skills that are:
-        1. Relevant to the role/industry
-        2. In-demand in the current market
-        3. Not already in the existing skills list
-        4. A mix of technical and soft skills
-        
-        Return only the JSON array, no additional text.
-      `;
+    // Simulated AI response for demo
+    setTimeout(() => {
+      const demoSkills = [
+        { name: 'React', level: 'Advanced', category: 'Framework' },
+        { name: 'TypeScript', level: 'Intermediate', category: 'Technical' },
+        { name: 'Team Leadership', level: 'Intermediate', category: 'Soft' },
+        { name: 'Node.js', level: 'Advanced', category: 'Technical' },
+        { name: 'Problem Solving', level: 'Advanced', category: 'Soft' }
+      ];
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: prompt }]
-          }]
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate skills');
-      }
-
-      const result = await response.json();
-      const aiResponse = result.candidates[0].content.parts[0].text;
-      
-      // Parse the AI response
-      let suggestedSkills;
-      try {
-        // Clean the response - remove any markdown formatting
-        const cleanResponse = aiResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        suggestedSkills = JSON.parse(cleanResponse);
-      } catch (parseError) {
-        console.error('Failed to parse AI response:', parseError);
-        throw new Error('Failed to parse AI suggestions');
-      }
-
-      // Validate and add skills
-      if (Array.isArray(suggestedSkills)) {
-        const validSkills = suggestedSkills
-          .filter(skill => 
-            skill.name && 
-            skill.level && 
-            skill.category &&
-            !skills.some(existingSkill => 
-              existingSkill.name.toLowerCase() === skill.name.toLowerCase()
-            )
+      const validSkills = demoSkills
+        .filter(skill => 
+          !skills.some(existingSkill => 
+            existingSkill.name.toLowerCase() === skill.name.toLowerCase()
           )
-          .map(skill => ({
-            id: Date.now() + Math.random(),
-            name: skill.name,
-            level: skill.level as Skill['level'],
-            category: skill.category as Skill['category']
-          }));
+        )
+        .map(skill => ({
+          id: Date.now() + Math.random(),
+          name: skill.name,
+          level: skill.level as Skill['level'],
+          category: skill.category as Skill['category']
+        }));
 
-        if (validSkills.length > 0) {
-          updateSkillsData([...skills, ...validSkills]);
-          setShowAIPanel(false);
-          setJobDescription('');
-          setCurrentRole('');
-        } else {
-          alert('No new skills were suggested by AI');
-        }
-      } else {
-        throw new Error('Invalid response format from AI');
+      if (validSkills.length > 0) {
+        updateSkillsData([...skills, ...validSkills]);
+        setShowAIPanel(false);
+        setJobDescription('');
+        setCurrentRole('');
       }
-
-    } catch (error) {
-      console.error('Error generating skills:', error);
-      alert('Failed to generate skills. Please try again.');
-    } finally {
+      
       setIsGenerating(false);
-    }
+    }, 2000);
   };
 
   const removeSkill = (id: number) => {
@@ -269,31 +217,31 @@ const EnhancedSkillsForm: React.FC<EnhancedSkillsFormProps> = ({ data, onChange 
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="w-full max-w-6xl mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header Card */}
       <Card className="border-0 shadow-lg bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-indigo-950">
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
+        <CardHeader className="pb-4 px-4 sm:px-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-100 dark:bg-indigo-900 rounded-lg">
-                <Brain className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+              <div className="p-2 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex-shrink-0">
+                <Brain className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600 dark:text-indigo-400" />
               </div>
-              <div>
-                <CardTitle className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+              <div className="min-w-0">
+                <CardTitle className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100">
                   Skills Management
                 </CardTitle>
-                <p className="text-slate-600 dark:text-slate-300 text-sm mt-1">
+                <p className="text-slate-600 dark:text-slate-300 text-sm mt-1 hidden sm:block">
                   Manage your professional skills with AI assistance
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
               <Button 
                 variant="outline" 
                 size="sm" 
                 onClick={() => setShowAIPanel(!showAIPanel)}
                 disabled={!apiKey}
-                className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-slate-200 dark:border-slate-600 hover:bg-white dark:hover:bg-slate-700"
+                className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-slate-200 dark:border-slate-600 hover:bg-white dark:hover:bg-slate-700 justify-center sm:justify-start"
               >
                 <Bot className="w-4 h-4 mr-2" />
                 AI Generate
@@ -302,7 +250,7 @@ const EnhancedSkillsForm: React.FC<EnhancedSkillsFormProps> = ({ data, onChange 
                 variant="outline" 
                 size="sm" 
                 onClick={toggleEnhancedMode}
-                className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-slate-200 dark:border-slate-600 hover:bg-white dark:hover:bg-slate-700"
+                className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border-slate-200 dark:border-slate-600 hover:bg-white dark:hover:bg-slate-700 justify-center sm:justify-start"
               >
                 {isEnhancedMode ? 'Simple Mode' : 'Enhanced Mode'}
               </Button>
@@ -314,18 +262,18 @@ const EnhancedSkillsForm: React.FC<EnhancedSkillsFormProps> = ({ data, onChange 
       {/* AI Generation Panel */}
       {showAIPanel && (
         <Card className="border-0 shadow-lg overflow-hidden">
-          <div className="bg-gradient-to-r from-purple-500 to-indigo-600 p-6">
+          <div className="bg-gradient-to-r from-purple-500 to-indigo-600 p-4 sm:p-6">
             <div className="flex items-center gap-3 text-white">
-              <Sparkles className="w-6 h-6" />
-              <div>
-                <h3 className="text-xl font-semibold">AI Skills Generator</h3>
-                <p className="text-purple-100 text-sm">Let AI suggest relevant skills for your profile</p>
+              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
+              <div className="min-w-0">
+                <h3 className="text-lg sm:text-xl font-semibold">AI Skills Generator</h3>
+                <p className="text-purple-100 text-sm hidden sm:block">Let AI suggest relevant skills for your profile</p>
               </div>
             </div>
           </div>
           
-          <CardContent className="p-6 space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
+          <CardContent className="p-4 sm:p-6 space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label className="text-slate-700 dark:text-slate-300 font-medium">Current Role</Label>
                 <Input
@@ -356,11 +304,11 @@ const EnhancedSkillsForm: React.FC<EnhancedSkillsFormProps> = ({ data, onChange 
               />
             </div>
             
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <Button 
                 onClick={generateSkillsWithAI}
                 disabled={isGenerating || (!jobDescription.trim() && !currentRole.trim())}
-                className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700"
+                className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 justify-center"
               >
                 {isGenerating ? (
                   <>
@@ -377,7 +325,7 @@ const EnhancedSkillsForm: React.FC<EnhancedSkillsFormProps> = ({ data, onChange 
               <Button 
                 variant="outline" 
                 onClick={() => setShowAIPanel(false)}
-                className="border-slate-200 dark:border-slate-600"
+                className="border-slate-200 dark:border-slate-600 sm:w-auto justify-center"
               >
                 Cancel
               </Button>
@@ -396,14 +344,15 @@ const EnhancedSkillsForm: React.FC<EnhancedSkillsFormProps> = ({ data, onChange 
 
       {/* Manual Skill Addition */}
       <Card className="border-0 shadow-lg">
-        <CardHeader className="pb-4">
+        <CardHeader className="pb-4 px-4 sm:px-6">
           <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
             <Plus className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             Add Skill Manually
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className={`grid gap-4 ${isEnhancedMode ? 'md:grid-cols-4' : 'md:grid-cols-2'}`}>
+        <CardContent className="px-4 sm:px-6">
+          <div className="grid gap-4">
+            {/* Skill Name - Always full width on mobile */}
             <div className="space-y-2">
               <Label className="text-slate-700 dark:text-slate-300 font-medium">Skill Name</Label>
               <Input
@@ -415,8 +364,9 @@ const EnhancedSkillsForm: React.FC<EnhancedSkillsFormProps> = ({ data, onChange 
               />
             </div>
             
+            {/* Enhanced mode fields */}
             {isEnhancedMode && (
-              <>
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label className="text-slate-700 dark:text-slate-300 font-medium">Proficiency</Label>
                   <Select value={newLevel} onValueChange={(value: Skill['level']) => setNewLevel(value)}>
@@ -446,52 +396,72 @@ const EnhancedSkillsForm: React.FC<EnhancedSkillsFormProps> = ({ data, onChange 
                     </SelectContent>
                   </Select>
                 </div>
-              </>
+              </div>
             )}
             
-            <div className="flex items-end">
-              <Button 
-                onClick={addSkill} 
-                className="w-full bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
-                disabled={!newSkill.trim()}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Skill
-              </Button>
-            </div>
+            {/* Add button */}
+            <Button 
+              onClick={addSkill} 
+              className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 justify-center"
+              disabled={!newSkill.trim()}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Skill
+            </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Skills List */}
       <Card className="border-0 shadow-lg">
-        <CardHeader className="pb-4">
-          <div className="flex items-center justify-between">
+        <CardHeader className="pb-4 px-4 sm:px-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <CardTitle className="text-lg font-semibold text-slate-800 dark:text-slate-100">
               Your Skills ({skills.length})
             </CardTitle>
             {skills.length > 0 && (
-              <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">
+              <Badge variant="secondary" className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300 w-fit">
                 {isEnhancedMode ? 'Enhanced View' : 'Simple View'}
               </Badge>
             )}
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 sm:px-6">
           {skills.length > 0 ? (
             <div className="space-y-3">
               {skills.map((skill) => (
-                <div key={skill.id} className="group p-4 border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 hover:shadow-md transition-all duration-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3 flex-1">
-                      <div className="flex items-center gap-3">
-                        {isEnhancedMode && getLevelIcon(skill.level)}
-                        <span className="font-medium text-slate-800 dark:text-slate-100 text-lg">
-                          {skill.name}
-                        </span>
+                <div key={skill.id} className="group p-3 sm:p-4 border border-slate-200 dark:border-slate-600 rounded-xl bg-white dark:bg-slate-800 hover:shadow-md transition-all duration-200">
+                  <div className="space-y-3">
+                    {/* Skill name and level/category badges */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {isEnhancedMode && (
+                            <div className="flex-shrink-0">
+                              {getLevelIcon(skill.level)}
+                            </div>
+                          )}
+                          <span className="font-medium text-slate-800 dark:text-slate-100 text-base sm:text-lg truncate">
+                            {skill.name}
+                          </span>
+                        </div>
                       </div>
-                      {isEnhancedMode && (
-                        <div className="flex items-center gap-2">
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeSkill(skill.id)}
+                        className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950 flex-shrink-0"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+
+                    {/* Enhanced mode badges and controls */}
+                    {isEnhancedMode && (
+                      <div className="space-y-3">
+                        {/* Badges */}
+                        <div className="flex flex-wrap items-center gap-2">
                           <Badge className={`text-xs font-medium ${getLevelColor(skill.level)}`}>
                             {skill.level}
                           </Badge>
@@ -499,65 +469,57 @@ const EnhancedSkillsForm: React.FC<EnhancedSkillsFormProps> = ({ data, onChange 
                             {skill.category}
                           </Badge>
                         </div>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      {isEnhancedMode && (
-                        <>
-                          <Select 
-                            value={skill.level} 
-                            onValueChange={(value: Skill['level']) => updateSkill(skill.id, 'level', value)}
-                          >
-                            <SelectTrigger className="w-32 h-9 border-slate-200 dark:border-slate-600">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Beginner">Beginner</SelectItem>
-                              <SelectItem value="Intermediate">Intermediate</SelectItem>
-                              <SelectItem value="Advanced">Advanced</SelectItem>
-                              <SelectItem value="Expert">Expert</SelectItem>
-                            </SelectContent>
-                          </Select>
+                        
+                        {/* Controls */}
+                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                          <div className="flex-1">
+                            <Select 
+                              value={skill.level} 
+                              onValueChange={(value: Skill['level']) => updateSkill(skill.id, 'level', value)}
+                            >
+                              <SelectTrigger className="h-9 border-slate-200 dark:border-slate-600">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Beginner">Beginner</SelectItem>
+                                <SelectItem value="Intermediate">Intermediate</SelectItem>
+                                <SelectItem value="Advanced">Advanced</SelectItem>
+                                <SelectItem value="Expert">Expert</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                           
-                          <Select 
-                            value={skill.category} 
-                            onValueChange={(value: Skill['category']) => updateSkill(skill.id, 'category', value)}
-                          >
-                            <SelectTrigger className="w-32 h-9 border-slate-200 dark:border-slate-600">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Technical">Technical</SelectItem>
-                              <SelectItem value="Soft">Soft Skills</SelectItem>
-                              <SelectItem value="Language">Language</SelectItem>
-                              <SelectItem value="Tool">Tool</SelectItem>
-                              <SelectItem value="Framework">Framework</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </>
-                      )}
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeSkill(skill.id)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
+                          <div className="flex-1">
+                            <Select 
+                              value={skill.category} 
+                              onValueChange={(value: Skill['category']) => updateSkill(skill.id, 'category', value)}
+                            >
+                              <SelectTrigger className="h-9 border-slate-200 dark:border-slate-600">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Technical">Technical</SelectItem>
+                                <SelectItem value="Soft">Soft Skills</SelectItem>
+                                <SelectItem value="Language">Language</SelectItem>
+                                <SelectItem value="Tool">Tool</SelectItem>
+                                <SelectItem value="Framework">Framework</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Brain className="w-8 h-8 text-slate-400 dark:text-slate-500" />
+            <div className="text-center py-8 sm:py-12">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Brain className="w-6 h-6 sm:w-8 sm:h-8 text-slate-400 dark:text-slate-500" />
               </div>
-              <h3 className="text-lg font-medium text-slate-800 dark:text-slate-200 mb-2">No skills added yet</h3>
-              <p className="text-slate-600 dark:text-slate-400 mb-4">
+              <h3 className="text-base sm:text-lg font-medium text-slate-800 dark:text-slate-200 mb-2">No skills added yet</h3>
+              <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mb-4 px-4">
                 Start building your skills profile by adding them manually or using AI generation
               </p>
             </div>
@@ -568,19 +530,19 @@ const EnhancedSkillsForm: React.FC<EnhancedSkillsFormProps> = ({ data, onChange 
       {/* Mode Information */}
       <Card className="border-0 shadow-sm bg-slate-50 dark:bg-slate-800">
         <CardContent className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-100 dark:bg-indigo-900 rounded-lg">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-indigo-100 dark:bg-indigo-900 rounded-lg flex-shrink-0">
               {isEnhancedMode ? (
-                <Target className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <Target className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 dark:text-indigo-400" />
               ) : (
-                <Zap className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 dark:text-indigo-400" />
               )}
             </div>
-            <div>
-              <p className="font-medium text-slate-800 dark:text-slate-200">
+            <div className="min-w-0">
+              <p className="font-medium text-slate-800 dark:text-slate-200 text-sm sm:text-base">
                 {isEnhancedMode ? 'Enhanced Mode Active' : 'Simple Mode Active'}
               </p>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-1">
                 {isEnhancedMode 
                   ? 'Skills include proficiency levels and categories for better organization and ATS optimization.'
                   : 'Skills are stored as a simple list. Switch to Enhanced Mode for detailed skill management.'
